@@ -1,0 +1,62 @@
+#!/bin/bash
+# --- 1. System Pre-requisites ---
+apt-get update -y
+apt-get install -y docker.io docker-compose awscli
+
+systemctl start docker
+systemctl enable docker
+usermod -aG docker ubuntu
+
+# --- 2. Create App Directory ---
+mkdir -p /home/ubuntu/app
+cd /home/ubuntu/app
+
+# --- 3. Create docker-compose.yml ---
+cat <<EOF > docker-compose.yml
+services:
+  redis:
+    image: redis:alpine
+    restart: on-failure
+    ports:
+      - "6379:6379"
+  web1:
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:node-app-latest
+    restart: on-failure
+    hostname: web1
+    ports:
+      - "81:5000"
+  web2:
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:node-app-latest
+    restart: on-failure
+    hostname: web2
+    ports:
+      - "82:5000"
+  nginx:
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:nginx-proxy-latest
+    ports:
+      - '80:80'
+    depends_on:
+      - web1
+      - web2
+    restart: on-failure
+EOF
+
+# --- 4. Authenticate with ECR ---
+# Uses the IAM role assigned to the EC2
+aws ecr get-login-password --region ${region} | \
+docker login --username AWS --password-stdin ${account_id}.dkr.ecr.${region}.amazonaws.com
+
+# --- 5. Pull and Start with Retry Loop ---
+echo "Pulling images from ECR..."
+for i in {1..20}; do
+  if docker-compose pull; then
+    docker-compose up -d
+    echo "Deployment successful!"
+    exit 0
+  fi
+  echo "Images not ready in ECR, retrying in 15s (Attempt $i/20)..."
+  sleep 15
+done
+
+echo "Deployment failed: Images never appeared in ECR."
+exit 1
