@@ -30,6 +30,15 @@ variable "environments" {
     }))
   }))
 }
-variable "ecr_name" {
-  default = "nginx-node-redis"
+variable "ecr_names" {
+  description = "ECR repository names keyed by service (nodejs, nginx)"
+  type = map(object({
+    repo_name = string
+    tag       = string
+  }))
+  default = {
+    nodejs = { repo_name = "nginx-node-redis/nodejs-app", tag = "node-app-latest" }
+    nginx  = { repo_name = "nginx-node-redis/nginx-app", tag = "nginx-proxy-latest" }
+  }
 }
+

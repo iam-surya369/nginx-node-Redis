@@ -22,9 +22,12 @@ resource "aws_instance" "servers" {
   vpc_security_group_ids = [aws_security_group.env_sgs[each.value.env].id]
 
   user_data = templatefile("${path.module}/../scripts/setup.tftpl", {
-    account_id = data.aws_caller_identity.current.account_id
-    region     = var.aws_region
-    ecr_name   = var.ecr_name
+    account_id      = data.aws_caller_identity.current.account_id
+    region          = var.aws_region
+    nodejs_ecr_name = var.ecr_names["nodejs"].repo_name
+    nodejs_ecr_tag  = var.ecr_names["nodejs"].tag
+    nginx_ecr_name  = var.ecr_names["nginx"].repo_name
+    nginx_ecr_tag   = var.ecr_names["nginx"].tag
   })
 
   tags = merge(local.common_tags, {

@@ -20,19 +20,19 @@ services:
     ports:
       - "6379:6379"
   web1:
-    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:node-app-latest
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${nodejs_ecr_name}:${nodejs_ecr_tag}
     restart: on-failure
     hostname: web1
     ports:
       - "81:5000"
   web2:
-    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:node-app-latest
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${nodejs_ecr_name}:${nodejs_ecr_tag}
     restart: on-failure
     hostname: web2
     ports:
       - "82:5000"
   nginx:
-    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_name}:nginx-proxy-latest
+    image: ${account_id}.dkr.ecr.${region}.amazonaws.com/${nginx_ecr_name}:${nginx_ecr_tag}
     ports:
       - '80:80'
     depends_on:
