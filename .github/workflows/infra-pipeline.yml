@@ -1,0 +1,97 @@
+#github actions file for terraform pipeline which will trigger on push to main branch where files inside terra-config/** or scripts/** are changed
+name: Terraform Infra Pipeline
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "terra-config/**"
+            - "scripts/**"
+
+jobs:
+    plan:
+        name: Terraform Plan
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
+        defaults:
+            run:
+                working-directory: terra-config
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6.0.2
+            
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/nginx-node-redis
+                aws-region: ${{ secrets.AWS_REGION_NAME }}
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                terraform_version: 1.11.4
+            
+            - name: List Terraform Files
+              run: ls -la
+
+            - name: Terraform Format Check
+              run: terraform fmt -check
+
+            - name: Initialize Terraform
+              run: terraform init
+
+            - name: Terraform Validate
+              run: terraform validate
+
+            - name: Terraform Plan
+              run: terraform plan -out=tfplan
+
+            - name: Print Terraform Plan Output
+              run: terraform show -no-color tfplan
+
+            - name: Upload Terraform Plan Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: tfplan
+                path: terra-config/tfplan
+
+    apply:
+        name: Terraform Apply
+        needs: plan
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            id-token: write
+            contents: read
+        defaults:
+            run:
+                working-directory: terra-config
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6.0.2
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/nginx-node-redis
+                aws-region: ${{ secrets.AWS_REGION_NAME }}
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                terraform_version: 1.11.4
+
+            - name: Initialize Terraform
+              run: terraform init
+
+            - name: Download Plan Artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: tfplan
+                path: terra-config
+
+            - name: Terraform Apply
+              run: terraform apply -auto-approve tfplan

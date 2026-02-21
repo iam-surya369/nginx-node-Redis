@@ -1,0 +1,88 @@
+#github actions file which will trigger on push to main branch where files inside web/** or nginx/** are changed
+name: App Pipeline
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "web/**"
+            - "nginx/**"
+
+jobs:
+    build:
+        name: Build and Push Docker Images
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6.0.2
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/nginx-node-redis
+                aws-region: ${{ secrets.AWS_REGION_NAME }}
+
+            - name: Login to Amazon ECR
+              id: login-ecr
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build and push Node.js image
+              uses: docker/build-push-action@v6
+              with:
+                context: ./web
+                file: web/Dockerfile
+                push: true
+                tags: |
+                  ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com/nginx-node-redis/nodejs-app:${{ github.sha }}
+                  ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com/nginx-node-redis/nodejs-app:latest
+
+            - name: Build and push Nginx image
+              uses: docker/build-push-action@v6
+              with:
+                context: ./nginx
+                file: nginx/Dockerfile
+                push: true
+                tags: |
+                  ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com/nginx-node-redis/nginx-app:${{ github.sha }}
+                  ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com/nginx-node-redis/nginx-app:latest
+
+    deploy:
+        name: Deploy to EC2
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
+        steps:
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/nginx-node-redis
+                aws-region: ${{ secrets.AWS_REGION_NAME }}
+
+            - name: Get EC2 Instance ID
+              id: get-instance
+              run: |
+                INSTANCE_ID=$(aws ec2 describe-instances \
+                  --filters "Name=tag:Name,Values=*nginx-node-redis*" \
+                            "Name=instance-state-name,Values=running" \
+                  --query "Reservations[].Instances[].InstanceId" \
+                  --output text)
+                echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+
+
+            - name: Deploy via SSM
+              run: |
+                COMMANDS='["cd /home/ubuntu/app","aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com","docker-compose pull","docker-compose up -d"]'
+                aws ssm send-command \
+                  --instance-ids ${{ steps.get-instance.outputs.instance_id }} \
+                  --document-name "AWS-RunShellScript" \
+                  --parameters "{\"commands\":$COMMANDS}" \
+                  --comment "Deploy from GitHub Actions"

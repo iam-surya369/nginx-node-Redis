@@ -62,3 +62,11 @@ Code push → GitHub Actions → Build Docker images
 ### Test App Pipeline
 
 - Change `server.js` title text → push to `main` → confirm Docker build, ECR push, and EC2 restart → visit public IP to see change
+
+## Full Flow
+
+1. Infra Pipeline (first time)
+   terra-config changes → terraform apply → EC2 created → user_data pulls images → App is live ✅
+
+2. App Pipeline (subsequent code changes)
+   web/ or nginx/ changes → Build images → Push to ECR → SSM deploy to EC2 → App updated ✅
