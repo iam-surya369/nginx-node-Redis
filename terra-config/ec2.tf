@@ -34,4 +34,10 @@ resource "aws_instance" "servers" {
     Name        = each.key
     Environment = each.value.env
   })
+
+  lifecycle {
+    ignore_changes = [
+      user_data
+    ]
+  }
 }

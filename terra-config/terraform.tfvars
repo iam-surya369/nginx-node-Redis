@@ -14,6 +14,6 @@ environments = {
   }
 }
 ecr_names = {
-  nodejs = { repo_name = "nginx-node-redis/nodejs-app", tag = "v1.0.0" }
-  nginx  = { repo_name = "nginx-node-redis/nginx-app", tag = "v1.0.0" }
+  nodejs = { repo_name = "nginx-node-redis/nodejs-app", tag = "latest" }
+  nginx  = { repo_name = "nginx-node-redis/nginx-app", tag = "latest" }
 }
