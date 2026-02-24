@@ -88,18 +88,13 @@ jobs:
                 ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com"
                 IMAGE_TAG="${{ github.sha }}"
 
-                COMMANDS=$(cat <<EOF
-                ["cd /home/ubuntu/app",
-                "sed -i 's/nodejs-app:[^ ]*/nodejs-app:${IMAGE_TAG}/g' docker-compose.yml",
-                "sed -i 's/nginx-app:[^ ]*/nginx-app:${IMAGE_TAG}/g' docker-compose.yml",
-                "aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
-                "docker-compose pull",
-                "docker-compose up -d"]
-                EOF
-                )
-
-                # Minify the JSON (remove newlines/extra spaces)
-                COMMANDS=$(echo "$COMMANDS" | tr -d '\n' | sed 's/  */ /g')
+                # Build SSM commands JSON array (each line = one command on EC2)
+                COMMANDS="[\"cd /home/ubuntu/app\","
+                COMMANDS+="\"sed -i 's/nodejs-app:[^ ]*/nodejs-app:${IMAGE_TAG}/g' docker-compose.yml\","
+                COMMANDS+="\"sed -i 's/nginx-app:[^ ]*/nginx-app:${IMAGE_TAG}/g' docker-compose.yml\","
+                COMMANDS+="\"aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin ${ECR_REGISTRY}\","
+                COMMANDS+="\"docker-compose pull\","
+                COMMANDS+="\"docker-compose up -d\"]"
 
                 COMMAND_ID=$(aws ssm send-command \
                   --instance-ids ${{ steps.get-instance.outputs.instance_id }} \
