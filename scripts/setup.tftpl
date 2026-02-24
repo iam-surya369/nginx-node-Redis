@@ -1,7 +1,13 @@
 #!/bin/bash
 # --- 1. System Pre-requisites ---
 apt-get update -y
-apt-get install -y docker.io docker-compose awscli
+apt-get install -y docker.io awscli
+
+# Install Docker Compose V2 plugin (V1 has ContainerConfig bug with Buildx images)
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 systemctl start docker
 systemctl enable docker
@@ -49,8 +55,8 @@ docker login --username AWS --password-stdin ${account_id}.dkr.ecr.${region}.ama
 # --- 5. Pull and Start with Retry Loop ---
 echo "Pulling images from ECR..."
 for i in {1..20}; do
-  if docker-compose pull; then
-    docker-compose up -d
+  if docker compose pull; then
+    docker compose up -d
     echo "Deployment successful!"
     exit 0
   fi
