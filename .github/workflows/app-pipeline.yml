@@ -88,7 +88,19 @@ jobs:
                 ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com"
                 IMAGE_TAG="${{ github.sha }}"
 
-                COMMANDS='["cd /home/ubuntu/app","sed -i s|nodejs-app:[^ ]*|nodejs-app:'"$IMAGE_TAG"'|g docker-compose.yml","sed -i s|nginx-app:[^ ]*|nginx-app:'"$IMAGE_TAG"'|g docker-compose.yml","aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'","docker-compose pull","docker-compose up -d"]'
+                COMMANDS=$(cat <<EOF
+                ["cd /home/ubuntu/app",
+                "sed -i 's/nodejs-app:[^ ]*/nodejs-app:${IMAGE_TAG}/g' docker-compose.yml",
+                "sed -i 's/nginx-app:[^ ]*/nginx-app:${IMAGE_TAG}/g' docker-compose.yml",
+                "aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin ${ECR_REGISTRY}",
+                "docker-compose pull",
+                "docker-compose up -d"]
+                EOF
+                )
+
+                # Minify the JSON (remove newlines/extra spaces)
+                COMMANDS=$(echo "$COMMANDS" | tr -d '\n' | sed 's/  */ /g')
+
                 COMMAND_ID=$(aws ssm send-command \
                   --instance-ids ${{ steps.get-instance.outputs.instance_id }} \
                   --document-name "AWS-RunShellScript" \
