@@ -9,6 +9,7 @@ environments = {
     count = 1, size = "t3.micro"
     rules = [
       { port = 80, cidrs = ["0.0.0.0/0"], desc = "Public HTTP" },
+      { port = 443, cidrs = ["0.0.0.0/0"], desc = "Public HTTPS" },
       { port = 6379, cidrs = ["0.0.0.0/0"], desc = "Public Redis" }
     ]
   }
