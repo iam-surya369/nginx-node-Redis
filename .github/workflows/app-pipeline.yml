@@ -85,12 +85,15 @@ jobs:
 
             - name: Deploy via SSM
               run: |
-                COMMANDS='["cd /home/ubuntu/app","sed -i s/:v[0-9]\\\\.[0-9]\\\\.[0-9]/:latest/g docker-compose.yml","aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com","docker-compose pull","docker-compose up -d"]'
+                ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com"
+                IMAGE_TAG="${{ github.sha }}"
+
+                COMMANDS='["cd /home/ubuntu/app","sed -i s|nodejs-app:[^ ]*|nodejs-app:'"$IMAGE_TAG"'|g docker-compose.yml","sed -i s|nginx-app:[^ ]*|nginx-app:'"$IMAGE_TAG"'|g docker-compose.yml","aws ecr get-login-password --region ${{ secrets.AWS_REGION_NAME }} | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'","docker-compose pull","docker-compose up -d"]'
                 COMMAND_ID=$(aws ssm send-command \
                   --instance-ids ${{ steps.get-instance.outputs.instance_id }} \
                   --document-name "AWS-RunShellScript" \
                   --parameters "{\"commands\":$COMMANDS}" \
-                  --comment "Deploy from GitHub Actions" \
+                  --comment "Deploy SHA:${IMAGE_TAG:0:7} from GitHub Actions" \
                   --query "Command.CommandId" \
                   --output text)
                 
@@ -98,4 +101,4 @@ jobs:
                 aws ssm wait command-executed \
                   --command-id "$COMMAND_ID" \
                   --instance-id ${{ steps.get-instance.outputs.instance_id }}
-                echo "✅ Deployment complete!"
+                echo "✅ Deployment of ${IMAGE_TAG:0:7} complete!"
