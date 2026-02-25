@@ -143,3 +143,61 @@ web/server.js
 Push to main → GitHub Actions tab should show app-pipeline triggered
 Confirm Docker build, ECR push, and SSM restart all succeed
 Visit http://<EC2_PUBLIC_IP> and confirm the change is live
+
+---
+
+## 🛠 Troubleshooting: Issues Encountered & Resolved
+
+### Issue 1: SSM Deploy Fails — Unquoted `sed` Expressions
+
+**Error:**
+
+```
+Waiter CommandExecuted failed: For expression "Status" we matched expected path: "Failed"
+```
+
+**Root Cause:** The `sed` command in the SSM deploy step used `|` as the delimiter (`s|...|...|g`). When SSM executed the command on the EC2 instance, the shell interpreted `|` as **pipe operators** instead of sed delimiters, causing the command to fail.
+
+An initial fix using a heredoc (`<<EOF`) also failed because GitHub Actions `run: |` blocks indent all content, but `<<EOF` requires the closing tag at **column 0** with no leading whitespace.
+
+**Resolution:** Used bash **string concatenation** (`+=`) to build the SSM commands JSON array, with:
+
+- **Single-quoted** sed expressions (`'s/.../g'`) to prevent shell interpretation
+- `/` as the sed delimiter instead of `|`
+
+```bash
+# ❌ Before (broken) — shell interprets | as pipes
+COMMANDS='["sed -i s|nodejs-app:[^ ]*|nodejs-app:SHA|g docker-compose.yml"]'
+
+# ✅ After (fixed) — single quotes protect the expression
+COMMANDS="[\"sed -i 's/nodejs-app:[^ ]*/nodejs-app:${IMAGE_TAG}/g' docker-compose.yml\"]"
+```
+
+---
+
+### Issue 2: `docker-compose up` Crashes — `ContainerConfig` KeyError
+
+**Error:**
+
+```
+ERROR: for web1  'ContainerConfig'
+ERROR: for web2  'ContainerConfig'
+```
+
+**Root Cause:** `docker-compose` **v1 (1.29.2)** has a known bug where it crashes with a `KeyError: 'ContainerConfig'` when recreating containers from images built with **Docker Buildx**. Buildx produces OCI-format images that don't include the legacy `ContainerConfig` field that v1 expects.
+
+The pipeline uses `docker/setup-buildx-action@v3` + `docker/build-push-action@v6`, which builds images with Buildx by default.
+
+**Resolution:**
+
+1. Upgraded the EC2 instance from `docker-compose` v1 (apt package) to **Docker Compose V2** (CLI plugin)
+2. Updated `setup.tftpl` to install Docker Compose V2 for future provisioning
+3. Changed all commands from `docker-compose` to `docker compose` (V2 syntax)
+
+```bash
+# Install Docker Compose V2 on the EC2
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+```
