@@ -34,19 +34,27 @@ app.get('/', function (req, res) {
         <meta charset="UTF-8">
         <title>Visit Counter</title>
         <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #1e3c72, #2a5298);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
             color: #fff;
             text-align: center;
-            padding: 50px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
           }
           .card {
             background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            padding: 40px 50px;
+            border-radius: 16px;
             display: inline-block;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
           }
           h1 {
             font-size: 2.5rem;
@@ -74,6 +82,45 @@ app.get('/', function (req, res) {
             box-shadow: 0 2px 10px ${badgeColor}80;
             animation: fadeIn 0.5s ease-in;
           }
+          .arch-section {
+            margin-top: 40px;
+            padding: 25px 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: fadeIn 0.8s ease-in;
+          }
+          .arch-section h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+          }
+          .arch-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+          .arch-item {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 1rem;
+            border: 1px solid rgba(255,255,255,0.15);
+          }
+          .arch-arrow {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.4);
+          }
+          .footer {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.35);
+          }
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -86,6 +133,21 @@ app.get('/', function (req, res) {
           <p>Total Visits: <span class="highlight">${numVisitsToDisplay}</span></p>
           <div class="server-badge">${badgeEmoji} Served by: ${badgeLabel} (${hostname})</div>
         </div>
+
+        <div class="arch-section">
+          <h2>⚙️ Architecture</h2>
+          <div class="arch-flow">
+            <div class="arch-item">🌐 Client</div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-item">⚡ Nginx</div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-item" style="border-color: ${badgeColor}; box-shadow: 0 0 8px ${badgeColor}40;">🟢 Node.js (×2)</div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-item">🔴 Redis</div>
+          </div>
+        </div>
+
+        <div class="footer">Nginx Load Balancer &bull; Node.js Backend &bull; Redis Data Store</div>
       </body>
       </html>
     `);
