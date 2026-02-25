@@ -76,14 +76,17 @@ jobs:
                   --query "Reservations[].Instances[].InstanceId" \
                   --output text)
                 if [ -z "$INSTANCE_ID" ]; then
-                  echo "❌ No running EC2 instance found!"
-                  exit 1
+                  echo "⚠️ No running EC2 instance found — skipping deploy"
+                  echo "skip=true" >> $GITHUB_OUTPUT
+                  exit 0
                 fi
                 echo "✅ Found instance: $INSTANCE_ID"
+                echo "skip=false" >> $GITHUB_OUTPUT
                 echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
 
 
             - name: Deploy via SSM
+              if: steps.get-instance.outputs.skip != 'true'
               run: |
                 ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION_NAME }}.amazonaws.com"
                 IMAGE_TAG="${{ github.sha }}"
